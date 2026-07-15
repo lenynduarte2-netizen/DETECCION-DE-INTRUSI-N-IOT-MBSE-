@@ -1,0 +1,151 @@
+/* ============================================================
+   MBSE IoT — client-side interactivity
+   Pure vanilla JS, no dependencies.
+   ============================================================ */
+
+(function () {
+  "use strict";
+
+  /* ---------- Mobile nav toggle ---------- */
+  const navToggle = document.querySelector(".nav-toggle");
+  const navLinks = document.querySelector(".navlinks");
+  if (navToggle && navLinks) {
+    navToggle.addEventListener("click", () => {
+      const open = navLinks.classList.toggle("open");
+      navToggle.setAttribute("aria-expanded", String(open));
+    });
+    navLinks.querySelectorAll("a").forEach((a) =>
+      a.addEventListener("click", () => navLinks.classList.remove("open"))
+    );
+  }
+
+  /* ---------- Copy-to-clipboard for code blocks ---------- */
+  document.querySelectorAll(".copy-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const target = document.getElementById(btn.dataset.target);
+      if (!target) return;
+      const text = target.innerText;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (_) {}
+        document.body.removeChild(ta);
+      }
+      const orig = btn.textContent;
+      btn.textContent = "copied ✓";
+      btn.classList.add("done");
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove("done");
+      }, 1600);
+    });
+  });
+
+  /* ---------- Test-matrix filter ---------- */
+  const filterBtns = document.querySelectorAll(".filter-btn");
+  const rows = document.querySelectorAll("tbody tr[data-tags]");
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const f = btn.dataset.filter;
+      rows.forEach((row) => {
+        const show = f === "all" || row.dataset.tags.includes(f);
+        row.style.display = show ? "" : "none";
+      });
+    });
+  });
+
+  /* ---------- Reveal on scroll ---------- */
+  const revealEls = document.querySelectorAll(".reveal");
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || !("IntersectionObserver" in window)) {
+    revealEls.forEach((el) => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("in");
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.12 }
+    );
+    revealEls.forEach((el) => io.observe(el));
+  }
+
+  /* ---------- Live clock in status panel ---------- */
+  const clock = document.getElementById("sp-clock");
+  if (clock) {
+    const tick = () => {
+      const d = new Date();
+      clock.textContent =
+        String(d.getHours()).padStart(2, "0") + ":" +
+        String(d.getMinutes()).padStart(2, "0") + ":" +
+        String(d.getSeconds()).padStart(2, "0");
+    };
+    tick();
+    setInterval(tick, 1000);
+  }
+
+  /* ---------- Simulated event ticker in status panel ---------- */
+  const evField = document.getElementById("sp-last-event");
+  if (evField) {
+    const events = [
+      { t: "PUERTA OK", c: "ok" },
+      { t: "VIBRACIÓN NORMAL", c: "ok" },
+      { t: "HVAC FILTRADO", c: "ok" },
+      { t: "SENSOR SW-420 OK", c: "ok" },
+      { t: "REED SWITCH OK", c: "ok" },
+      { t: "ACL VLAN99 ACTIVA", c: "ok" },
+    ];
+    let i = 0;
+    const rotate = () => {
+      const ev = events[i % events.length];
+      evField.textContent = ev.t;
+      evField.className = "v " + ev.c;
+      i++;
+    };
+    rotate();
+    setInterval(rotate, 2600);
+  }
+
+  /* ---------- Back to top ---------- */
+  const toTop = document.querySelector(".totop");
+  if (toTop) {
+    window.addEventListener("scroll", () => {
+      toTop.classList.toggle("show", window.scrollY > 600);
+    });
+    toTop.addEventListener("click", () =>
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" })
+    );
+  }
+
+  /* ---------- Active nav highlight on scroll ---------- */
+  const sections = document.querySelectorAll("section[id]");
+  const navMap = {};
+  document.querySelectorAll(".navlinks a").forEach((a) => {
+    const id = a.getAttribute("href").replace("#", "");
+    navMap[id] = a;
+  });
+  if ("IntersectionObserver" in window && sections.length) {
+    const spy = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting && navMap[e.target.id]) {
+            Object.values(navMap).forEach((a) => (a.style.color = ""));
+            navMap[e.target.id].style.color = "var(--ink-100)";
+          }
+        });
+      },
+      { rootMargin: "-40% 0px -55% 0px" }
+    );
+    sections.forEach((s) => spy.observe(s));
+  }
+})();
